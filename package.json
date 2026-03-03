@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "docx": "^9.6.0",
     "file-saver": "^2.0.5",
     "lucide-react": "^0.576.0",
