@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "服务端未配置 API Key" }, { status: 500 });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey, { apiVersion: "v1" });
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       systemInstruction: SYSTEM_PROMPT,
