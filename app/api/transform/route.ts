@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 
 const SYSTEM_PROMPT = `# Role
 你是一位拥有20年教学经验的资深英语老师。你的任务是接收用户输入的"单词 词性"列表，并根据对应的词性提供严谨的语法变形，输出为适合 Word 整理的标准化文本。
@@ -37,6 +38,11 @@ const SYSTEM_PROMPT = `# Role
 2. 根据词性检索正确的语法变形。
 3. 处理英美拼写差异并去重相同变形。`;
 
+const systemInstruction: Content = {
+  role: "system",
+  parts: [{ text: SYSTEM_PROMPT }],
+};
+
 export async function POST(req: NextRequest) {
   try {
     const { input } = await req.json();
@@ -50,36 +56,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "服务端未配置 API Key" }, { status: 500 });
     }
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: "user", parts: [{ text: input }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
-      }),
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction,
     });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      const errMsg =
-        (errData as { error?: { message?: string } })?.error?.message ||
-        `Gemini API 错误 (${response.status})`;
-      return NextResponse.json({ error: errMsg }, { status: response.status });
-    }
+    const geminiResult = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: input }] }],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 4096,
+      },
+    });
 
-    const data = await response.json() as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const result = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const result = geminiResult.response.text();
 
     return NextResponse.json({ result });
   } catch (err: unknown) {
     console.error("API route error:", err);
-    const errMsg =
-      err instanceof Error ? err.message : "服务器内部错误";
+    const errMsg = err instanceof Error ? err.message : "服务器内部错误";
     return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }
